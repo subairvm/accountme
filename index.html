@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dashboard — Income & Expense</title>
+
+<style>
+  :root{
+    --bg:#0b1220;
+    --card:#111b2e;
+    --muted:#9aa4b2;
+    --accent:#38bdf8;
+    --accent-2:#60a5fa;
+  }
+
+  body{
+    font-family: 'Inter', system-ui, Arial;
+    margin:18px;
+    background:linear-gradient(160deg,#0b1220,#091426,#071120);
+    color:#e6eef6;
+  }
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:16px;
+    padding-bottom:10px;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+  }
+
+  /* <- fixed block starts here -> */
+  header h2{
+    font-weight:600;
+    /* gradient background used as text color */
+    background:linear-gradient(90deg,var(--accent),#7dd3fc);
+    /* vendor-prefixed and standard property */
+    -webkit-background-clip: text;
+    background-clip: text;
+    /* make the gradient show through the text */
+    -webkit-text-fill-color: transparent;
+    /* ensure element can receive the background clipping reliably */
+    display: inline-block;
+    margin:0;
+  }
+  /* <- fixed block ends here -> */
+
+  nav a{
+    color:var(--muted);
+    text-decoration:none;
+    margin:0 6px;
+    font-size:14px;
+  }
+  nav a:hover{
+    color:var(--accent);
+  }
+
+  .card{
+    background:rgba(255,255,255,0.04);
+    backdrop-filter:blur(8px);
+    padding:18px;
+    border-radius:14px;
+    margin-bottom:16px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.3);
+  }
+
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .box{
+    flex:1;
+    padding:14px;
+    border-radius:10px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.08);
+    transition:transform .2s, background .3s;
+  }
+  .box:hover{
+    transform:translateY(-2px);
+    background:rgba(255,255,255,0.08);
+  }
+
+  button{
+    padding:8px 12px;
+    border-radius:8px;
+    border:none;
+    cursor:pointer;
+    background:linear-gradient(90deg,var(--accent-2),var(--accent));
+    color:#fff;
+    font-size:13px;
+    transition:opacity .2s,transform .2s;
+  }
+  button:hover{
+    opacity:0.9;
+    transform:translateY(-1px);
+  }
+
+  input[type=file]::file-selector-button{
+    display:none;
+  }
+
+  canvas{
+    border-radius:10px;
+    background:#0b142a;
+    border:1px solid rgba(255,255,255,0.05);
+  }
+
+  ::placeholder{
+    color:#5f6b85;
+  }
+
+  #bankList div:hover{
+    background:rgba(255,255,255,0.03);
+  }
+</style>
+</head>
+
+<body>
+  
+
+</html>
+
+
+<body>
+  <header>
+    <h2>💹 Income & Expense — Dashboard</h2>
+    <nav>
+      <a href="index.html">Dashboard</a> |
+      <a href="banks.html">Banks</a> |
+      <a href="transactions.html">Transactions</a>
+    </nav>
+  </header>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong style="font-size:16px;">Overview</strong>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="btnExport">Export JSON</button>
+        <input id="fileIn" type="file" accept="application/json" style="display:none">
+        <button id="btnImport">Import JSON</button>
+        <button id="btnReset" style="background:linear-gradient(90deg,#ef4444,#f87171)">Reset</button>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:8px">
+      <div class="box">
+        <div style="font-size:12px;color:var(--muted)">Total Income</div>
+        <div id="income" style="font-weight:700;font-size:22px">₹0</div>
+      </div>
+      <div class="box">
+        <div style="font-size:12px;color:var(--muted)">Total Expense</div>
+        <div id="expense" style="font-weight:700;font-size:22px">₹0</div>
+      </div>
+      <div class="box">
+        <div style="font-size:12px;color:var(--muted)">Net</div>
+        <div id="net" style="font-weight:700;font-size:22px">₹0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong style="font-size:16px;">Balances by Bank</strong>
+    <div id="bankList" style="margin-top:10px;font-size:14px"></div>
+  </div>
+
+  <div class="card">
+    <strong style="font-size:16px;">Charts</strong>
+    <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+      <canvas id="chartBar" width="600" height="200"></canvas>
+      <canvas id="chartPie" width="200" height="200"></canvas>
+    </div>
+    <div style="margin-top:8px;text-align:center;color:var(--muted);font-size:13px">
+  Created with © Copyright Subair V M
+</div>
+  </div>
+
+<script src="data.js"></script>
+<script>
+  function el(id){return document.getElementById(id)}
+  function fmtAmt(n){return '₹'+(n||0).toLocaleString('en-IN')}
+  function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
+  function render(){
+    const totals = DataStore.totals();
+    el('income').textContent = fmtAmt(totals.income);
+    el('expense').textContent = fmtAmt(totals.expense);
+    el('net').textContent = fmtAmt(totals.net);
+
+    const banks = DataStore.balancesPerBank();
+    const list = el('bankList'); list.innerHTML='';
+    banks.forEach(b=>{
+      const d=document.createElement('div');
+      d.style.padding='10px';
+      d.style.display='flex';
+      d.style.justifyContent='space-between';
+      d.style.borderBottom='1px dashed rgba(255,255,255,0.05)';
+      d.innerHTML = `<div><strong>${escapeHtml(b.name)}</strong><div style='font-size:12px;color:${getComputedStyle(document.documentElement).getPropertyValue("--muted")}'>${b.count} txns</div></div>
+                     <div style='text-align:right'><div>${fmtAmt(b.balance)}</div><div style='font-size:12px;color:${getComputedStyle(document.documentElement).getPropertyValue("--muted")}'>inc ${fmtAmt(b.income)} • exp ${fmtAmt(b.expense)}</div></div>`;
+      list.appendChild(d);
+    });
+    drawCharts(banks);
+  }
+
+  function drawCharts(banks){
+    const c=document.getElementById('chartBar'),ctx=c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);
+    const pad=30,w=c.width-pad*2,h=c.height-pad*2;
+    const vals=banks.map(b=>b.balance),labels=banks.map(b=>b.name);
+    const max=Math.max(1,...vals.map(v=>Math.abs(v)));
+    const barW=Math.max(6,Math.floor(w/Math.max(1,vals.length))-6);
+    vals.forEach((v,i)=>{
+      const x=pad+i*(barW+6);
+      const barH=(Math.abs(v)/max)*(h-20);
+      const y=pad+(v>=0?(h-barH):h);
+      ctx.fillStyle=v>=0?'#10b981':'#ef4444';
+      ctx.fillRect(x,y,barW,barH);
+      ctx.fillStyle='#9aa4b2';
+      ctx.font='10px Arial';
+      ctx.fillText(labels[i].slice(0,8),x,pad+h+12);
+    });
+
+    const c2=document.getElementById('chartPie'),p=c2.getContext('2d');
+    p.clearRect(0,0,c2.width,c2.height);
+    const incs=banks.map(b=>b.income),totalInc=incs.reduce((s,x)=>s+x,0)||1;
+    let start=0,cx=c2.width/2,cy=c2.height/2,r=Math.min(cx,cy)-10;
+    incs.forEach((v,i)=>{
+      const ang=(v/totalInc)*Math.PI*2;
+      p.beginPath();p.moveTo(cx,cy);
+      p.arc(cx,cy,r,start,start+ang);
+      p.closePath();
+      p.fillStyle=`hsl(${i*35%360} 70% 50%)`;
+      p.fill();start+=ang;
+    });
+  }
+
+  // buttons
+  el('btnExport').addEventListener('click',()=>{
+    const blob=new Blob([DataStore.exportJSON()],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='ie-data.json';a.click();URL.revokeObjectURL(url);
+  });
+  el('btnImport').addEventListener('click',()=>el('fileIn').click());
+  el('fileIn').addEventListener('change',async ev=>{
+    const f=ev.target.files[0];if(!f)return;
+    try{
+      const txt=await f.text();
+      const parsed=JSON.parse(txt);
+      if(!Array.isArray(parsed.banks)||!Array.isArray(parsed.txns)){alert('Invalid file');return;}
+      if(!confirm('Import replaces current data. Continue?'))return;
+      DataStore.importFrom(parsed);render();alert('Imported');
+    }catch(e){alert('Error');}
+  });
+  el('btnReset').addEventListener('click',()=>{if(confirm('Reset all data?')){DataStore.resetToDefault();render();}});
+
+  render();
+  window.addEventListener('focus',render);
+</script>
+</body>
+</html>

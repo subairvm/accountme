@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dashboard — Income & Expense</title>
+
+<style>
+  :root{
+    --bg:#0b1220;
+    --card:#111b2e;
+    --muted:#9aa4b2;
+    --accent:#38bdf8;
+    --accent-2:#60a5fa;
+  }
+
+  body{
+    font-family: 'Inter', system-ui, Arial;
+    margin:18px;
+    background:linear-gradient(160deg,#0b1220,#091426,#071120);
+    color:#e6eef6;
+  }
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:16px;
+    padding-bottom:10px;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+  }
+
+  /* <- fixed block starts here -> */
+  header h2{
+    font-weight:600;
+    /* gradient background used as text color */
+    background:linear-gradient(90deg,var(--accent),#7dd3fc);
+    /* vendor-prefixed and standard property */
+    -webkit-background-clip: text;
+    background-clip: text;
+    /* make the gradient show through the text */
+    -webkit-text-fill-color: transparent;
+    /* ensure element can receive the background clipping reliably */
+    display: inline-block;
+    margin:0;
+  }
+  /* <- fixed block ends here -> */
+
+  nav a{
+    color:var(--muted);
+    text-decoration:none;
+    margin:0 6px;
+    font-size:14px;
+  }
+  nav a:hover{
+    color:var(--accent);
+  }
+
+  .card{
+    background:rgba(255,255,255,0.04);
+    backdrop-filter:blur(8px);
+    padding:18px;
+    border-radius:14px;
+    margin-bottom:16px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.3);
+  }
+
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .box{
+    flex:1;
+    padding:14px;
+    border-radius:10px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.08);
+    transition:transform .2s, background .3s;
+  }
+  .box:hover{
+    transform:translateY(-2px);
+    background:rgba(255,255,255,0.08);
+  }
+
+  button{
+    padding:8px 12px;
+    border-radius:8px;
+    border:none;
+    cursor:pointer;
+    background:linear-gradient(90deg,var(--accent-2),var(--accent));
+    color:#fff;
+    font-size:13px;
+    transition:opacity .2s,transform .2s;
+  }
+  button:hover{
+    opacity:0.9;
+    transform:translateY(-1px);
+  }
+  input, select {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0e1527; /* darker gray background */
+  color: #e6eef6;
+  width: 100%;
+  outline: none;
+  transition: border-color .2s, background .2s;
+}
+
+/* When focused */
+input:focus, select:focus {
+  border-color: var(--accent);
+  background: #111b2e;
+}
+
+/* Placeholder styling */
+::placeholder {
+  color: #6f7b94;        /* soft gray text */
+  opacity: 1;
+  font-style: italic;    /* stylish touch */
+}
+
+/* Darker placeholder background effect for clarity */
+input::placeholder {
+  background: #0e1527;   /* same as input background */
+  padding-left: 4px;
+}
+
+
+  input[type=file]::file-selector-button{
+    display:none;
+  }
+
+  canvas{
+    border-radius:10px;
+    background:#0b142a;
+    border:1px solid rgba(255,255,255,0.05);
+  }
+
+  ::placeholder{
+    color:#5f6b85;
+  }
+
+  #bankList div:hover{
+    background:rgba(255,255,255,0.03);
+  }
+</style>
+</head>
+
+<body>
+  
+
+</html>
+
+<body>
+  <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h2>Transactions</h2>
+    <nav>
+      <a href="index.html">Dashboard</a> |
+      <a href="banks.html">Banks</a> |
+      <a href="transactions.html">Transactions</a>
+    </nav>
+  </header>
+
+  <div class="card">
+    <strong>Add Transaction</strong>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+      <div>
+        <label>Type</label>
+        <select id="typeSel"><option value="income">Income</option><option value="expense">Expense</option></select>
+      </div>
+      <div>
+        <label>Bank</label>
+        <select id="bankSel"></select>
+      </div>
+      <div>
+        <label>Date</label>
+        <input id="dateIn" type="date" />
+      </div>
+      <div>
+        <label>Amount</label>
+        <input id="amtIn" type="number" step="0.01" />
+      </div>
+      <div>
+        <label>Category</label>
+        <input id="catIn" />
+      </div>
+      <div>
+        <label>Notes</label>
+        <input id="notesIn" />
+      </div>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button id="saveTxn">Save Transaction</button>
+      <button id="resetTxn">Reset</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>All Transactions</strong>
+    <div style="margin-top:8px;margin-bottom:8px"><input id="search" placeholder="Search category or notes" style="width:100%" /></div>
+    <div id="txArea" style="max-height:320px;overflow:auto"></div>
+  </div>
+
+  <script src="data.js"></script>
+  <script>
+    const $id = id=>document.getElementById(id);
+    function render(){
+      const st = DataStore.getState();
+      // bank options
+      const sel = $id('bankSel'); sel.innerHTML=''; const o0 = document.createElement('option'); o0.value=''; o0.textContent='Unassigned'; sel.appendChild(o0);
+      st.banks.forEach(b=>{ const o=document.createElement('option'); o.value=b.id; o.textContent=b.name; sel.appendChild(o); });
+
+      // tx list
+      const q = $id('search').value.trim().toLowerCase();
+      let txns = st.txns.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+      if(q) txns = txns.filter(t => (t.category||'').toLowerCase().includes(q) || (t.notes||'').toLowerCase().includes(q));
+      const area = $id('txArea'); area.innerHTML='';
+      txns.forEach(t=>{
+        const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.padding='8px'; div.style.borderBottom='1px dashed rgba(255,255,255,0.03)';
+        const bankName = t.bankId ? (st.banks.find(b=>b.id===t.bankId)?.name || 'Unknown') : 'Unassigned';
+        div.innerHTML = `<div><div><strong>${t.type.toUpperCase()}</strong> ${escape(t.category)} <span style='font-size:12px;color:#9aa4b2'>${new Date(t.date).toLocaleDateString()}</span></div><div style='color:#9aa4b2;font-size:13px'>${escape(t.notes)}</div></div><div style='text-align:right'><div>${fmtAmt(t.amount)}</div><div style='font-size:12px;color:#9aa4b2'>${escape(bankName)}</div><div style='margin-top:6px'><button data-edit='${t.id}'>Edit</button> <button data-del='${t.id}'>Del</button></div></div>`;
+        area.appendChild(div);
+      });
+
+      // bind
+      area.querySelectorAll('[data-del]').forEach(b=> b.addEventListener('click', ()=>{ if(confirm('Delete?')){ DataStore.deleteTxn(b.dataset.del); render(); } }));
+      area.querySelectorAll('[data-edit]').forEach(b=> b.addEventListener('click', ()=> openEdit(b.dataset.edit)));
+    }
+
+    $id('saveTxn').addEventListener('click', ()=>{
+      const type = $id('typeSel').value; const bankId = $id('bankSel').value || null; const date = $id('dateIn').value ? new Date($id('dateIn').value).toISOString() : new Date().toISOString(); const amount = Number($id('amtIn').value) || 0; const cat = $id('catIn').value.trim(); const notes = $id('notesIn').value.trim();
+      if(!amount || amount<=0){ alert('Enter positive amount'); return; }
+      DataStore.addTxn({date, type, amount, category:cat, notes, bankId});
+      resetForm(); render();
+    });
+
+    function openEdit(id){ const st = DataStore.getState(); const t = st.txns.find(x=>x.id===id); if(!t) return; $id('typeSel').value=t.type; $id('bankSel').value=t.bankId||''; $id('dateIn').value = t.date ? new Date(t.date).toISOString().slice(0,10) : ''; $id('amtIn').value=t.amount; $id('catIn').value=t.category||''; $id('notesIn').value=t.notes||''; $id('saveTxn').dataset.edit = id; $id('saveTxn').textContent='Update'; }
+
+    $id('resetTxn').addEventListener('click', resetForm);
+    function resetForm(){ $id('typeSel').value='income'; $id('bankSel').value=''; $id('dateIn').value = new Date().toISOString().slice(0,10); $id('amtIn').value=''; $id('catIn').value=''; $id('notesIn').value=''; delete $id('saveTxn').dataset.edit; $id('saveTxn').textContent='Save Transaction'; }
+
+    // editing save flow
+    document.getElementById('saveTxn').addEventListener('click', ()=>{
+      const btn = $id('saveTxn'); if(btn.dataset.edit){ const id = btn.dataset.edit; const patch = { type:$id('typeSel').value, bankId:$id('bankSel').value||null, date: $id('dateIn').value? new Date($id('dateIn').value).toISOString(): new Date().toISOString(), amount: Number($id('amtIn').value)||0, category:$id('catIn').value.trim(), notes:$id('notesIn').value.trim() }; DataStore.updateTxn(id, patch); resetForm(); render(); }
+    });
+
+    $id('search').addEventListener('input', render);
+
+    function escape(s){ if(s==null) return ''; return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    // init
+    resetForm(); render(); window.addEventListener('focus', render);
+  </script>
+</body>
+</html>
