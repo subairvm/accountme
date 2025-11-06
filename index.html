@@ -30,21 +30,15 @@
     border-bottom:1px solid rgba(255,255,255,0.06);
   }
 
-  /* <- fixed block starts here -> */
   header h2{
     font-weight:600;
-    /* gradient background used as text color */
     background:linear-gradient(90deg,var(--accent),#7dd3fc);
-    /* vendor-prefixed and standard property */
     -webkit-background-clip: text;
     background-clip: text;
-    /* make the gradient show through the text */
     -webkit-text-fill-color: transparent;
-    /* ensure element can receive the background clipping reliably */
     display: inline-block;
     margin:0;
   }
-  /* <- fixed block ends here -> */
 
   nav a{
     color:var(--muted);
@@ -73,6 +67,7 @@
     background:rgba(255,255,255,0.05);
     border:1px solid rgba(255,255,255,0.08);
     transition:transform .2s, background .3s;
+    min-width:160px;
   }
   .box:hover{
     transform:translateY(-2px);
@@ -113,13 +108,6 @@
   }
 </style>
 </head>
-
-<body>
-  
-
-</html>
-
-
 <body>
   <header>
     <h2>💹 Income & Expense — Dashboard</h2>
@@ -155,6 +143,22 @@
         <div id="net" style="font-weight:700;font-size:22px">₹0</div>
       </div>
     </div>
+
+    <!-- Today's boxes (new) -->
+    <div class="row" style="margin-top:12px">
+      <div class="box">
+        <div style="font-size:12px;color:var(--muted)">Today's Income</div>
+        <div id="todayIncome" style="font-weight:700;font-size:22px">₹0</div>
+      </div>
+      <div class="box">
+        <div style="font-size:12px;color:var(--muted)">Today's Expense</div>
+        <div id="todayExpense" style="font-weight:700;font-size:22px">₹0</div>
+      </div>
+      <div class="box">
+        <div style="font-size:12px;color:var(--muted)">Today's Net</div>
+        <div id="todayNet" style="font-weight:700;font-size:22px">₹0</div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -169,90 +173,149 @@
       <canvas id="chartPie" width="200" height="200"></canvas>
     </div>
     <div style="margin-top:8px;text-align:center;color:var(--muted);font-size:13px">
-  Created with © Copyright Subair V M
-</div>
+      Created with © Copyright Subair V M
+    </div>
   </div>
 
 <script src="data.js"></script>
 <script>
-  function el(id){return document.getElementById(id)}
-  function fmtAmt(n){return '₹'+(n||0).toLocaleString('en-IN')}
-  function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  // small helpers used by this page
+  function el(id){ return document.getElementById(id); }
+
+  function fmtAmt(n){
+    n = Number(n) || 0;
+    const fixed = (Math.abs(n % 1) < 0.000001) ? String(Math.round(n)) : n.toFixed(2);
+    return '₹' + fixed.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  // robust local-date-equality: compares year/month/date in local timezone
+  function isSameLocalDate(isoOrAny){
+    if(!isoOrAny) return false;
+    const d = new Date(isoOrAny);
+    if(isNaN(d.getTime())) return false;
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() &&
+           d.getMonth() === now.getMonth() &&
+           d.getDate() === now.getDate();
+  }
 
   function render(){
-    const totals = DataStore.totals();
+    // totals (global)
+    const totals = (typeof DataStore.totals === 'function') ? DataStore.totals() : { income:0, expense:0, net:0 };
     el('income').textContent = fmtAmt(totals.income);
     el('expense').textContent = fmtAmt(totals.expense);
     el('net').textContent = fmtAmt(totals.net);
 
-    const banks = DataStore.balancesPerBank();
-    const list = el('bankList'); list.innerHTML='';
+    // today totals (scan all txns; ignore transfers)
+    const txns = (typeof DataStore.listTxns === 'function') ? DataStore.listTxns() : (DataStore.getState && DataStore.getState().txns ? DataStore.getState().txns.slice() : []);
+    let todayIncome = 0, todayExpense = 0;
+    txns.forEach(t=>{
+      if(!t || !t.type) return;
+      if(!isSameLocalDate(t.date)) return;
+      if(t.type === 'income') todayIncome += Number(t.amount) || 0;
+      else if(t.type === 'expense') todayExpense += Number(t.amount) || 0;
+    });
+    el('todayIncome').textContent = fmtAmt(todayIncome);
+    el('todayExpense').textContent = fmtAmt(todayExpense);
+    el('todayNet').textContent = fmtAmt(todayIncome - todayExpense);
+
+    // banks list
+    const banks = (typeof DataStore.balancesPerBank === 'function') ? DataStore.balancesPerBank() : [];
+    const list = el('bankList'); list.innerHTML = '';
     banks.forEach(b=>{
-      const d=document.createElement('div');
-      d.style.padding='10px';
-      d.style.display='flex';
-      d.style.justifyContent='space-between';
-      d.style.borderBottom='1px dashed rgba(255,255,255,0.05)';
-      d.innerHTML = `<div><strong>${escapeHtml(b.name)}</strong><div style='font-size:12px;color:${getComputedStyle(document.documentElement).getPropertyValue("--muted")}'>${b.count} txns</div></div>
-                     <div style='text-align:right'><div>${fmtAmt(b.balance)}</div><div style='font-size:12px;color:${getComputedStyle(document.documentElement).getPropertyValue("--muted")}'>inc ${fmtAmt(b.income)} • exp ${fmtAmt(b.expense)}</div></div>`;
+      const d = document.createElement('div');
+      d.style.padding = '10px';
+      d.style.display = 'flex';
+      d.style.justifyContent = 'space-between';
+      d.style.borderBottom = '1px dashed rgba(255,255,255,0.05)';
+      const muted = getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#9aa4b2';
+      d.innerHTML = `<div><strong>${escapeHtml(b.name)}</strong><div style='font-size:12px;color:${muted}'>${b.count} txns</div></div>
+                     <div style='text-align:right'><div>${fmtAmt(b.balance)}</div><div style='font-size:12px;color:${muted}'>inc ${fmtAmt(b.income)} • exp ${fmtAmt(b.expense)}</div></div>`;
       list.appendChild(d);
     });
+
     drawCharts(banks);
   }
 
+  // simple bar + pie charts (keeps original behaviour)
   function drawCharts(banks){
-    const c=document.getElementById('chartBar'),ctx=c.getContext('2d');
+    // bar chart (balances)
+    const c = document.getElementById('chartBar'), ctx = c.getContext('2d');
     ctx.clearRect(0,0,c.width,c.height);
-    const pad=30,w=c.width-pad*2,h=c.height-pad*2;
-    const vals=banks.map(b=>b.balance),labels=banks.map(b=>b.name);
-    const max=Math.max(1,...vals.map(v=>Math.abs(v)));
-    const barW=Math.max(6,Math.floor(w/Math.max(1,vals.length))-6);
+    const pad = 30, w = c.width - pad*2, h = c.height - pad*2;
+    const vals = banks.map(b=>b.balance), labels = banks.map(b=>b.name);
+    const max = Math.max(1, ...vals.map(v=>Math.abs(v)));
+    const barW = Math.max(8, Math.floor(w / Math.max(1, vals.length)) - 6);
+    ctx.textAlign = 'left';
     vals.forEach((v,i)=>{
-      const x=pad+i*(barW+6);
-      const barH=(Math.abs(v)/max)*(h-20);
-      const y=pad+(v>=0?(h-barH):h);
-      ctx.fillStyle=v>=0?'#10b981':'#ef4444';
-      ctx.fillRect(x,y,barW,barH);
-      ctx.fillStyle='#9aa4b2';
-      ctx.font='10px Arial';
-      ctx.fillText(labels[i].slice(0,8),x,pad+h+12);
+      const x = pad + i*(barW + 6);
+      const barH = (Math.abs(v) / max) * (h - 20);
+      const y = pad + (v >= 0 ? (h - barH) : h);
+      ctx.fillStyle = v >= 0 ? '#10b981' : '#ef4444';
+      ctx.fillRect(x, y, barW, barH);
+      ctx.fillStyle = '#9aa4b2';
+      ctx.font = '10px Arial';
+      ctx.fillText(labels[i].slice(0,10), x, pad + h + 12);
     });
 
-    const c2=document.getElementById('chartPie'),p=c2.getContext('2d');
+    // pie chart of income by bank
+    const c2 = document.getElementById('chartPie'), p = c2.getContext('2d');
     p.clearRect(0,0,c2.width,c2.height);
-    const incs=banks.map(b=>b.income),totalInc=incs.reduce((s,x)=>s+x,0)||1;
-    let start=0,cx=c2.width/2,cy=c2.height/2,r=Math.min(cx,cy)-10;
+    const incs = banks.map(b=>b.income), totalInc = incs.reduce((s,x)=>s+x,0) || 1;
+    let start = -Math.PI/2, cx = c2.width/2, cy = c2.height/2, r = Math.min(cx,cy) - 8;
     incs.forEach((v,i)=>{
-      const ang=(v/totalInc)*Math.PI*2;
-      p.beginPath();p.moveTo(cx,cy);
+      const ang = (v/totalInc) * Math.PI * 2;
+      p.beginPath(); p.moveTo(cx,cy);
       p.arc(cx,cy,r,start,start+ang);
       p.closePath();
-      p.fillStyle=`hsl(${i*35%360} 70% 50%)`;
-      p.fill();start+=ang;
+      p.fillStyle = `hsl(${(i*45) % 360} 70% 50%)`;
+      p.fill(); start += ang;
     });
   }
 
-  // buttons
-  el('btnExport').addEventListener('click',()=>{
-    const blob=new Blob([DataStore.exportJSON()],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='ie-data.json';a.click();URL.revokeObjectURL(url);
-  });
-  el('btnImport').addEventListener('click',()=>el('fileIn').click());
-  el('fileIn').addEventListener('change',async ev=>{
-    const f=ev.target.files[0];if(!f)return;
+  // export / import / reset handlers
+  el('btnExport').addEventListener('click', ()=>{
     try{
-      const txt=await f.text();
-      const parsed=JSON.parse(txt);
-      if(!Array.isArray(parsed.banks)||!Array.isArray(parsed.txns)){alert('Invalid file');return;}
-      if(!confirm('Import replaces current data. Continue?'))return;
-      DataStore.importFrom(parsed);render();alert('Imported');
-    }catch(e){alert('Error');}
+      const blob = new Blob([DataStore.exportJSON()], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'ie-data.json'; a.click();
+      URL.revokeObjectURL(url);
+    }catch(e){ alert('Export failed'); console.error(e); }
   });
-  el('btnReset').addEventListener('click',()=>{if(confirm('Reset all data?')){DataStore.resetToDefault();render();}});
 
+  el('btnImport').addEventListener('click', ()=> el('fileIn').click());
+
+  el('fileIn').addEventListener('change', async ev => {
+    const f = ev.target.files[0]; if(!f) return;
+    try{
+      const txt = await f.text();
+      const parsed = JSON.parse(txt);
+      // DataStore.importFrom expects { banks: [...], txns: [...] }
+      if(!parsed || !Array.isArray(parsed.banks) || !Array.isArray(parsed.txns)){
+        alert('Invalid file: expected banks & txns arrays');
+        return;
+      }
+      if(!confirm('Import replaces current data. Continue?')) return;
+      DataStore.importFrom(parsed);
+      render();
+      alert('Imported successfully');
+    }catch(e){ console.error(e); alert('Import failed'); }
+    // clear the input so same file can be reselected if needed
+    ev.target.value = '';
+  });
+
+  el('btnReset').addEventListener('click', ()=> {
+    if(confirm('Reset all data to defaults? This cannot be undone.')){
+      DataStore.resetToDefault();
+      render();
+    }
+  });
+
+  // initial render & refresh when tab focused
   render();
-  window.addEventListener('focus',render);
+  window.addEventListener('focus', render);
 </script>
 </body>
 </html>
