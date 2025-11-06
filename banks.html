@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Banks — Income & Expense</title>  
+<title>Banks — Income & Expense</title>
 <style>
   :root{
     --bg:#071024;--card:#07182a;--muted:#9aa4b2;--accent:#7dd3fc;
@@ -20,7 +20,7 @@
     border-radius: 10px;
     margin-bottom: 12px;
   }
-  label{display:block;margin-top:6px}
+  label { display:block;margin-top:6px }
   input, select {
     padding: 8px;
     border-radius: 6px;
@@ -30,30 +30,18 @@
     width: 100%;
     box-sizing: border-box;
   }
-  ::placeholder { color: #bfc8d6; opacity: 1; }
+  ::placeholder { color:#bfc8d6;opacity:1 }
   button {
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    background: var(--accent);
-    color: #000;
-    font-weight: 600;
+    padding:8px 10px;border-radius:8px;border:none;cursor:pointer;
+    background:var(--accent);color:#000;font-weight:600;
   }
-  button:hover { opacity:0.85; }
-  nav a{
-    color:var(--muted);
-    text-decoration:none;
-    margin:0 6px;
-    font-size:14px;
-  }
-  nav a:hover{ color:var(--accent); }
+  button:hover{opacity:0.85}
+  nav a{color:var(--muted);text-decoration:none;margin:0 6px;font-size:14px;}
+  nav a:hover{color:var(--accent)}
   header h2{
     font-weight:600;
     background:linear-gradient(90deg,var(--accent),#7dd3fc);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
-    display:inline-block;
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
     margin:0;
   }
 </style>
@@ -95,7 +83,7 @@
       </div>
     </div>
     <div style="margin-top:8px;display:flex;gap:8px">
-      <input id="transferDate" placeholder="DD-MM-YYYY" />
+      <input id="transferDate" type="date" />
       <input id="transferNotes" placeholder="Optional note" />
       <button id="doTransfer">Transfer</button>
     </div>
@@ -108,36 +96,8 @@
   <script src="data.js"></script>
   <script>
     function $id(a){return document.getElementById(a);}
-
-    /**
-     * Robust date parser:
-     * - accepts DD-MM-YYYY or DD/MM/YYYY (1-2 digits for day/month, 2 or 4 digits for year)
-     * - if that fails, attempts JS Date parsing (ISO or other)
-     * - falls back to current date
-     * Always returns an ISO string.
-     */
-    function toISO(d){
-      if(!d) return new Date().toISOString();
-      d = String(d).trim();
-      // match dd-mm-yyyy or dd/mm/yyyy (allow 2-digit year too)
-      const m = d.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
-      if(m){
-        let dd = Number(m[1]), mm = Number(m[2]), yy = Number(m[3]);
-        // normalize 2-digit year to 2000+ (simple heuristic)
-        if(yy < 100){
-          yy += (yy >= 70 ? 1900 : 2000);
-        }
-        const dt = new Date(yy, mm - 1, dd);
-        if(!isNaN(dt.getTime())){
-          return dt.toISOString();
-        }
-      }
-      // try letting Date parse it (handles ISO YYYY-MM-DD, etc.)
-      const parsed = new Date(d);
-      if(!isNaN(parsed.getTime())) return parsed.toISOString();
-      // last-resort: return now
-      return new Date().toISOString();
-    }
+    function fmtAmt(n){return '₹'+(n? n.toFixed(2):'0.00');}
+    function escape(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
     function render(){
       const st = DataStore.getState();
@@ -145,18 +105,14 @@
       const area = $id('banksArea'); area.innerHTML='';
 
       banks.forEach(b=>{
-        const div = document.createElement('div');
-        div.style.display='flex';
-        div.style.justifyContent='space-between';
-        div.style.alignItems='center';
-        div.style.padding='8px';
-        div.style.borderBottom='1px dashed rgba(255,255,255,0.03)';
-        div.innerHTML = `
+        const div=document.createElement('div');
+        div.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px dashed rgba(255,255,255,0.03)';
+        div.innerHTML=`
           <div>
             <strong>${escape(b.name)}</strong>
             <div style="font-size:12px;color:#9aa4b2">
               ${b.count} txns<br>
-              Opening: ₹${b.opening ? b.opening.toFixed(2) : '0.00'}
+              Opening: ${fmtAmt(b.opening)}
             </div>
           </div>
           <div style="text-align:right">
@@ -164,61 +120,44 @@
             <div style="font-size:12px;color:#9aa4b2">
               inc ${fmtAmt(b.income)} • exp ${fmtAmt(b.expense)}
             </div>
-            <button style="margin-top:4px;font-size:12px;padding:4px 6px;" onclick="editBank('${b.id}')">Edit</button>
           </div>
         `;
         area.appendChild(div);
       });
 
-      ['transferFrom','transferTo'].forEach(selId=>{
-        const sel = $id(selId); sel.innerHTML='';
-        const opt0 = document.createElement('option'); opt0.value=''; opt0.textContent='Unassigned'; sel.appendChild(opt0);
+      ['transferFrom','transferTo'].forEach(id=>{
+        const sel=$id(id); sel.innerHTML='';
+        const o0=document.createElement('option');o0.value='';o0.textContent='Unassigned';sel.appendChild(o0);
         st.banks.forEach(b=>{
-          const o=document.createElement('option'); o.value=b.id; o.textContent=b.name; sel.appendChild(o);
+          const o=document.createElement('option');o.value=b.id;o.textContent=b.name;sel.appendChild(o);
         });
       });
     }
 
-    $id('addBankBtn').addEventListener('click', ()=>{
-      const name = $id('newBankName').value.trim();
-      const opening = parseFloat($id('newBankOpening').value) || 0;
-      if(!name){ alert('Enter bank name'); return; }
-      DataStore.addBank(name, opening);
+    $id('addBankBtn').onclick=()=>{
+      const name=$id('newBankName').value.trim();
+      const opening=parseFloat($id('newBankOpening').value)||0;
+      if(!name){alert('Enter bank name');return;}
+      DataStore.addBank(name,opening);
       $id('newBankName').value='';
       $id('newBankOpening').value='';
       render();
-    });
+    };
 
-    function editBank(id){
-      const st = DataStore.getState();
-      const bank = st.banks.find(b=>b.id===id);
-      if(!bank) return;
-      const newName = prompt('Edit bank name:', bank.name);
-      if(newName && newName.trim()){
-        bank.name = newName.trim();
-        DataStore.saveState(st);
-        render();
-      }
-    }
-
-    $id('doTransfer').addEventListener('click', ()=>{
-      const from = $id('transferFrom').value || null;
-      const to = $id('transferTo').value || null;
-      const amt = Number($id('transferAmt').value) || 0;
-      const date = toISO($id('transferDate').value);
-      const notes = $id('transferNotes').value.trim();
-
-      if(!amt || amt<=0){ alert('Enter positive amount'); return; }
-      if(from === to && !(from==='' && to==='')){ alert('Select different banks for transfer'); return; }
-      DataStore.transfer(from, to, amt, date, notes);
+    $id('doTransfer').onclick=()=>{
+      const from=$id('transferFrom').value||null;
+      const to=$id('transferTo').value||null;
+      const amt=Number($id('transferAmt').value)||0;
+      const date=$id('transferDate').value || new Date().toISOString().slice(0,10);
+      const notes=$id('transferNotes').value.trim();
+      if(!amt||amt<=0)return alert('Enter positive amount');
+      if(from===to)return alert('Choose different banks');
+      DataStore.transfer(from,to,amt,date,notes);
       alert('Transfer complete');
       render();
-    });
-
-    function escape(s){ if(s==null) return ''; return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    };
 
     render();
-    window.addEventListener('focus', render);
   </script>
 </body>
 </html>
